@@ -1,0 +1,64 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+const char* ssid = "d_link";  // Replace with your WiFi SSID
+const char* password = "123456789";  // Replace with your WiFi Password
+const char* api_key = "aazamt9PmDHoIo15MHoJeRRRLNaUZzAw3W3ZOxi9lvdQ0M5gFke80XicFFpO3xbgP57Up0PPvNak68jQodeF2YXefRQbBgh9mgYiOLJDIEgAbvCSGhbfsK3zI5mxlSsJ
+aaBiCJmcHgEJ8dfTrDH2saWq5Tl2qedKZ5YVg6yJyK47j93999yGoQal6knZb2Q95gH8mFPsEc3grG1cN4SmVRrhDegCTzkUj1vruT7zKRrSfRmTIMA1mNrq9yWry6L7
+aa7GzCp7QGPu0OBr6Z0vdd4ojPBCvPXpAq7gWbRaFd9P0NkKaog8rPULuUQnyMVyobLihIDFhWKKCzWQuto9QIGefkr7zuq4QLUX0hQQL90aguDI1xO7wIyapoNS24J4
+";  
+const char* server = "https://api.apis.guru/v2/list.json";
+
+// Function to connect to WiFi
+void connectToWiFi() {
+    Serial.print("Connecting to WiFi...");
+    WiFi.begin(ssid, password);
+    
+    int retry_count = 0;
+    while (WiFi.status() != WL_CONNECTED && retry_count < 20) {
+        delay(500);
+        Serial.print(".");
+        retry_count++;
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("\nWiFi Connected! IP Address: " + WiFi.localIP().toString());
+    } else {
+        Serial.println("\nFailed to connect to WiFi. Restarting...");
+        ESP.restart();
+    }
+}
+
+void setup() {
+    Serial.begin(115200);
+    connectToWiFi();
+}
+
+void loop() {
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("WiFi disconnected! Reconnecting...");
+        connectToWiFi();
+    }
+
+    float voltage = 220.5;  // Replace with actual sensor data
+    float current = 1.5;  // Replace with actual sensor data
+    float power = voltage * current;
+
+    String url = String(server) + "?api_key=" + api_key +
+                 "&field1=" + String(voltage) +
+                 "&field2=" + String(current) +
+                 "&field3=" + String(power);
+
+    HTTPClient http;
+    http.begin(url);
+
+    int httpCode = http.GET();
+    if (httpCode > 0) {
+        Serial.println("Data Sent to Thingspeak | Response Code: " + String(httpCode));
+    } else {
+        Serial.println("Error Sending Data | HTTP Code: " + String(httpCode));
+    }
+
+    http.end();
+    delay(15000);  // Update every 15 seconds
+}

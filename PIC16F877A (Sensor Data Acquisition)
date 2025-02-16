@@ -1,0 +1,62 @@
+#include <xc.h>
+#include <stdio.h>
+#include "lcd.h"  // Include your LCD Library
+
+#define _XTAL_FREQ 20000000  // 20MHz Clock Speed
+
+// UART Initialization
+void UART_Init() {
+    TXSTA = 0x20;  // Enable transmitter
+    RCSTA = 0x90;  // Enable receiver
+    SPBRG = 31;    // Baud rate 9600 for 20MHz
+}
+
+// UART Transmit Function
+void UART_Transmit(char data) {
+    while (!TXIF);  // Wait until buffer is empty
+    TXREG = data;
+}
+
+// Read ADC Value
+int ADC_Read(int channel) {
+    ADCON0 = (channel << 3);
+    ADCON0 |= 0x04; // Start conversion
+    while (ADCON0 & 0x04);
+    return ((ADRESH << 8) + ADRESL);
+}
+
+void main() {
+    TRISA = 0xFF;  // Set all PORTA pins as input (for sensors)
+    UART_Init();
+    ADCON1 = 0x80; // Configure ADC settings
+
+    lcd_init();
+    lcd_clear();
+
+    while (1) {
+        int voltage = ADC_Read(0); // Read voltage from ZMPT101B
+        int current = ADC_Read(1); // Read current from ACS712
+        
+        float v = (voltage * 5.0) / 1023.0;  // Convert ADC to Voltage
+        float i = (current * 5.0) / 1023.0;  // Convert ADC to Current
+        float power = v * i;  // Power Calculation
+        
+        char buffer[50];
+        sprintf(buffer, "V:%.2fV I:%.2fA P:%.2fW", v, i, power);
+
+        // Display on LCD
+        lcd_clear();
+        lcd_set_cursor(1, 1);
+        lcd_write_string("Smart Energy Meter");
+        lcd_set_cursor(2, 1);
+        lcd_write_string(buffer);
+        
+        // Send Data via UART to ESP32
+        for (int j = 0; buffer[j] != '\0'; j++) {
+            UART_Transmit(buffer[j]);
+        }
+        UART_Transmit('\n');
+        
+        __delay_ms(5000); // Delay for 5 seconds
+    }
+}
